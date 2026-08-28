@@ -86,8 +86,8 @@ impl State {
 
         // Kamera i Uniformy
         let camera = Camera3D {
-            eye: (0.0, 10.0, 45.0).into(),
-            target: (0.0, 12.0, 0.0).into(),
+            eye: (0.0, 5.0, 15.0).into(),
+            target: (0.0, 3.0, 0.0).into(),
             up: glam::Vec3::Y,
             aspect: config.width as f32 / config.height as f32,
             fov: 45.0,

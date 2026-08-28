@@ -87,11 +87,10 @@ impl Turtle3D {
                     }
                 }
                 'J' => {
-                    // Utwórz domyślną domenę, jeśli lista z parsera jest pusta
                     let fallback = DomainData {
-                        name: "localhost".to_string(),
-                        seconds: 3600,
-                        hue: 120.0,
+                        name: format!("domain_{}", domain_idx),
+                        seconds: 600 * ((domain_idx % 5) + 1) as u64,
+                        hue: (domain_idx * 45) as f32 % 360.0,
                         weight: 1.0,
                     };
 
@@ -143,7 +142,6 @@ impl Turtle3D {
         let base_index = vertices.len() as u32;
         let color = domain_to_rgb(&domain.name);
 
-        // Zabezpieczenie skali: bezpieczny log1p, aby dla seconds >= 0 otrzymywać wartości > 0
         let scale = ((domain.seconds as f32 + 1.0).ln() * 0.15).max(0.12);
 
         let up = self.state.rotation * glam::Vec3::Y * scale;
@@ -151,19 +149,16 @@ impl Turtle3D {
 
         let normal = (self.state.rotation * glam::Vec3::Z).normalize().into();
 
-        // Wierzchołki płaszczyzny liścia
         vertices.push(Vertex { position: (pos - right).into(), normal, color }); // 0
         vertices.push(Vertex { position: (pos + up).into(), normal, color });    // 1
         vertices.push(Vertex { position: (pos + right).into(), normal, color }); // 2
         vertices.push(Vertex { position: (pos - up).into(), normal, color });    // 3
 
-        // Strona przednia (Front Face - CCW)
         indices.extend_from_slice(&[
             base_index, base_index + 1, base_index + 2,
             base_index, base_index + 2, base_index + 3,
         ]);
 
-        // Strona tylna (Back Face - CW) — rysuje liść widoczny z drugiej strony bez wyłączania cull_mode w pipeline
         indices.extend_from_slice(&[
             base_index, base_index + 2, base_index + 1,
             base_index, base_index + 3, base_index + 2,
