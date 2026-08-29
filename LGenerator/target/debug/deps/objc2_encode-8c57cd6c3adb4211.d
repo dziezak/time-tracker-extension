@@ -1,0 +1,10 @@
+/Users/korne/Developer/Github/Home/time-tracker-extension/LGenerator/target/debug/deps/objc2_encode-8c57cd6c3adb4211.d: /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/lib.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/encoding.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/encoding_box.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/helper.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/parse.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/static_str.rs
+
+/Users/korne/Developer/Github/Home/time-tracker-extension/LGenerator/target/debug/deps/libobjc2_encode-8c57cd6c3adb4211.rmeta: /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/lib.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/encoding.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/encoding_box.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/helper.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/parse.rs /Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/static_str.rs
+
+/Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/lib.rs:
+/Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/encoding.rs:
+/Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/encoding_box.rs:
+/Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/helper.rs:
+/Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/parse.rs:
+/Users/korne/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-encode-3.0.0/src/static_str.rs:

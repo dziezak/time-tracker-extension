@@ -1,14 +1,16 @@
 use std::sync::Arc;
+use wgpu::util::DeviceExt;
 use winit::window::Window;
 use crate::lsystem::turtle3d::Vertex;
 use crate::render::camera::Camera3D;
+use crate::render::petals::PetalSystem;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct UniformsGPU {
     mvp: [[f32; 4]; 4],
     time: f32,
-    _padding: [f32; 3], // Wygładzenie pod std140 ułożenie pamięci w GPU
+    _padding: [f32; 3], 
 }
 
 pub struct State {
@@ -25,6 +27,11 @@ pub struct State {
     depth_texture_view: wgpu::TextureView,
     camera: Camera3D,
     start_time: std::time::Instant,
+    petal_system: PetalSystem,
+    petal_vertex_buffer: wgpu::Buffer,
+    petal_index_buffer: wgpu::Buffer,
+    petal_index_count: u32,
+    last_update_time: std::time::Instant,
 }
 
 impl State {
@@ -86,13 +93,13 @@ impl State {
 
         // Kamera i Uniformy
         let camera = Camera3D {
-            eye: (0.0, 5.0, 15.0).into(),
-            target: (0.0, 3.0, 0.0).into(),
+            eye: (10.0, 35.0, 25.0).into(),
+            target: (0.0, 10.0, 0.0).into(),
             up: glam::Vec3::Y,
             aspect: config.width as f32 / config.height as f32,
             fov: 45.0,
             znear: 0.1,
-            zfar: 200.0,
+            zfar: 100.0,
         };
 
         let initial_mvp = camera.build_view_projection_matrix();
@@ -169,6 +176,22 @@ impl State {
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
+        
+        let petal_system = PetalSystem::new(400);
+        let (petal_vertices, petal_indices) = petal_system.to_vertices();
+        let petal_index_count = petal_indices.len() as u32;
+        
+        let petal_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
+            label: Some("Petal Vetex Buffer"),
+            contents: bytemuck::cast_slice(&petal_vertices),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let petal_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Petal Index Buffer"),
+            contents: bytemuck::cast_slice(&petal_indices),
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+        });
 
         Self {
             surface,
@@ -184,6 +207,11 @@ impl State {
             depth_texture_view,
             camera,
             start_time: std::time::Instant::now(),
+            petal_system,
+            petal_vertex_buffer,
+            petal_index_buffer,
+            petal_index_count,
+            last_update_time: std::time::Instant::now(),
         }
     }
 
@@ -193,8 +221,7 @@ impl State {
 
         let time = self.start_time.elapsed().as_secs_f32();
 
-        // Aktualizacja pozycji kamery (obrót wokół sceny)
-        self.camera.update_orbit(time * 0.2, 45.0);
+        self.camera.update_orbit(time * 0.1, 35.0);
         let mvp = self.camera.build_view_projection_matrix();
 
         let updated_uniforms = UniformsGPU {
@@ -213,7 +240,12 @@ impl State {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.03, g: 0.04, b: 0.07, a: 1.0 }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color { 
+                            r: 0.03, 
+                            g: 0.04, 
+                            b: 0.07, 
+                            a: 1.0 
+                        }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -227,6 +259,10 @@ impl State {
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+
+            render_pass.set_vertex_buffer(0, self.petal_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.petal_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..self.petal_index_count, 0, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -244,7 +280,18 @@ impl State {
     }
 
     pub fn update(&mut self) {
-        // Logika aktualizacji klatki (np. obrót kamery), jeśli potrzebna
+        let now = std::time::Instant::now();
+        let dt = now.duration_since(self.last_update_time).as_secs_f32();
+        self.last_update_time = now;
+
+        let time = self.start_time.elapsed().as_secs_f32();
+
+        self.petal_system.update(dt, time);
+
+        let (vertices, indices) = self.petal_system.to_vertices();
+        self.queue.write_buffer(&self.petal_vertex_buffer, 0, bytemuck::cast_slice(&vertices));
+        self.queue.write_buffer(&self.petal_index_buffer, 0, bytemuck::cast_slice(&indices));
+        self.petal_index_count = indices.len() as u32;
     }
 }
 
