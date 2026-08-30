@@ -55,9 +55,21 @@ impl Turtle3D {
         domains: &[DomainData],
         base_angle_rad: f32,
     ) -> (Vec<Vertex>, Vec<u32>) {
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-        let mut domain_idx = 0;
+        let mut vertices = Vec::with_capacity(axiom_sequence.len() * 8);
+        let mut indices = Vec::with_capacity(axiom_sequence.len() * 12);
+
+        self.state = TurtleState {
+            position: glam::Vec3::ZERO,
+            rotation: glam::Quat::IDENTITY,
+            thickness: 0.35,
+            length: 1.0,
+        };
+        self.stack.clear();
+
+        let mut current_domain_idx: usize = 0;
+        let mut domain_stack: Vec<usize> = Vec::new();
+        let mut branch_counter: usize = 0;
+        let mut leaf_counter: usize = 0; // <-- Dodany licznik wariacji liści
 
         for ch in axiom_sequence.chars() {
             match ch {
@@ -65,8 +77,13 @@ impl Turtle3D {
                     let forward = self.state.rotation * Vec3::Y;
                     let next_pos = self.state.position + forward * self.state.length;
 
-                    // Budujemy segment pnia/gałęzi
-                    self.append_cylinder(&mut vertices, &mut indices, self.state.position, next_pos, self.state.thickness);
+                    self.append_cylinder(
+                        &mut vertices,
+                        &mut indices,
+                        self.state.position,
+                        next_pos,
+                        self.state.thickness,
+                    );
                     self.state.position = next_pos;
                 }
                 '+' => self.state.rotation = self.state.rotation * Quat::from_rotation_z(base_angle_rad),
@@ -78,30 +95,39 @@ impl Turtle3D {
 
                 '[' => {
                     self.stack.push(self.state.clone());
-                    self.state.thickness *= 0.65;
-                    self.state.length *= 0.58;
+                    domain_stack.push(current_domain_idx);
+
+                    branch_counter += 1;
+                    current_domain_idx = branch_counter;
+
+                    self.state.thickness *= 0.68;
+                    self.state.length *= 0.72;
                 }
                 ']' => {
                     if let Some(saved) = self.stack.pop() {
                         self.state = saved;
                     }
+                    if let Some(prev_domain) = domain_stack.pop() {
+                        current_domain_idx = prev_domain;
+                    }
                 }
                 'J' => {
                     let fallback = DomainData {
-                        name: format!("domain_{}", domain_idx),
-                        seconds: 600 * ((domain_idx % 5) + 1) as u64,
-                        hue: (domain_idx * 45) as f32 % 360.0,
-                        weight: 1.0,
+                        name: format!("domain_{}", current_domain_idx),
+                        seconds: 600,
+                        weight: 0.5,
+                        color: [0.2, 0.8, 0.3, 1.0],
                     };
 
                     let domain = if domains.is_empty() {
                         &fallback
                     } else {
-                        &domains[domain_idx % domains.len()]
+                        &domains[current_domain_idx % domains.len()]
                     };
 
-                    self.append_leaf(&mut vertices, &mut indices, self.state.position, domain);
-                    domain_idx += 1;
+                    // Przekazujemy leaf_counter jako 5. argument
+                    self.append_leaf(&mut vertices, &mut indices, self.state.position, domain, leaf_counter);
+                    leaf_counter += 1;
                 }
                 _ => {}
             }
@@ -138,28 +164,35 @@ impl Turtle3D {
         indices: &mut Vec<u32>,
         pos: glam::Vec3,
         domain: &DomainData,
+        leaf_variant: usize,
     ) {
         let base_index = vertices.len() as u32;
-        let color = domain_to_rgb(&domain.name);
 
-        let scale = ((domain.seconds as f32 + 1.0).ln() * 0.15).max(0.12);
+        let scale = 0.08 + domain.weight * 0.12;
+
+        let mut color = domain.color;
+        let brightness_offset = ((leaf_variant % 5) as f32 - 2.0) * 0.04;
+        color[0] = (color[0] + brightness_offset).clamp(0.0, 1.0);
+        color[1] = (color[1] + brightness_offset).clamp(0.0, 1.0);
+        color[2] = (color[2] + brightness_offset).clamp(0.0, 1.0);
 
         let up = self.state.rotation * glam::Vec3::Y * scale;
-        let right = self.state.rotation * glam::Vec3::X * scale;
-
+        let right = self.state.rotation * glam::Vec3::X * (scale * 0.6);
         let normal = (self.state.rotation * glam::Vec3::Z).normalize().into();
 
-        vertices.push(Vertex { position: (pos - right).into(), normal, color }); // 0
-        vertices.push(Vertex { position: (pos + up).into(), normal, color });    // 1
-        vertices.push(Vertex { position: (pos + right).into(), normal, color }); // 2
-        vertices.push(Vertex { position: (pos - up).into(), normal, color });    // 3
+        let p0 = pos - right;
+        let p1 = pos + up;
+        let p2 = pos + right;
+        let p3 = pos - up * 0.4;
+
+        vertices.push(Vertex { position: p0.into(), normal, color });
+        vertices.push(Vertex { position: p1.into(), normal, color });
+        vertices.push(Vertex { position: p2.into(), normal, color });
+        vertices.push(Vertex { position: p3.into(), normal, color });
 
         indices.extend_from_slice(&[
             base_index, base_index + 1, base_index + 2,
             base_index, base_index + 2, base_index + 3,
-        ]);
-
-        indices.extend_from_slice(&[
             base_index, base_index + 2, base_index + 1,
             base_index, base_index + 3, base_index + 2,
         ]);

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { margin: 0; background: #0a0e14; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+
+const rawData = {
+  "gemini.google.com": 688,
+  "cineb.sx": 114,
+  "www.youtube.com": 211,
+  "trello.com": 606,
+  "archive.org": 3,
+  "github.com": 614,
+  "discord.com": 3068,
+  "www.messenger.com": 5,
+  "duckduckgo.com": 12,
+  "vercel.com": 5,
+  "basia-portfolio-pi.vercel.app": 2,
+  "welib.org": 1
+};
+
+const entries = Object.entries(rawData).sort((a,b) => b[1] - a[1]);
+const totalTime = entries.reduce((acc, curr) => acc + curr[1], 0);
+
+function getDomainHue(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return Math.abs(hash) % 360;
+}
+
+let time = 0;
+
+function drawTree(x, y, len, angle, depth, domainIndex) {
+  if (depth === 0 || len < 2) return;
+
+  // Wiatr - wahania kąta w czasie
+  const wind = Math.sin(time + depth) * 0.03;
+  const currentAngle = angle + wind;
+
+  const endX = x + len * Math.cos(currentAngle);
+  const endY = y + len * Math.sin(currentAngle);
+
+  // Pobieramy dane domeny dla bieżącej gałęzi
+  const [domain, timeSpent] = entries[domainIndex % entries.length];
+  const hue = getDomainHue(domain);
+
+  // Rysowanie gałęzi
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(endX, endY);
+  ctx.strokeStyle = `hsl(${hue}, 40%, ${20 + depth * 8}%)`;
+  ctx.lineWidth = Math.max(1, depth * 1.8);
+  ctx.stroke();
+
+  // Rysowanie "owocu/liścia" domeny na końcach gałęzi
+  if (depth <= 2) {
+    const leafRadius = Math.log(timeSpent + 1) * 2;
+    ctx.beginPath();
+    ctx.arc(endX, endY, leafRadius, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+    ctx.shadowBlur = leafRadius * 2;
+    ctx.shadowColor = `hsl(${hue}, 80%, 60%)`;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Rozgałęzienie L-systemu (kąty i długości zależne od danych)
+  const angleSpread = 0.35 + (entries.length * 0.01); 
+  const lengthFactor = 0.72 + Math.log(timeSpent + 1) * 0.01;
+
+  drawTree(endX, endY, len * lengthFactor, currentAngle - angleSpread, depth - 1, domainIndex + 1);
+  drawTree(endX, endY, len * lengthFactor, currentAngle + angleSpread, depth - 1, domainIndex + 2);
+}
+
+function animate() {
+  ctx.fillStyle = 'rgba(10, 14, 20, 0.3)';
+  ctx.fillRect(0, 0, width, height);
+
+  time += 0.02;
+  
+  // Start pnia u dołu ekranu
+  const initialLength = 120 + Math.log(totalTime) * 5;
+  drawTree(width / 2, height - 50, initialLength, -Math.PI / 2, 8, 0);
+
+  requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>

@@ -15,17 +15,42 @@ pub fn build_tree_sequence(depth: usize) -> String {
     let mut rules_map = HashMap::new();
     rules_map.insert('F', "FF-[-F+J]+[+F&J]/[^F\\J]".chars().collect::<Vec<_>>());
 
-    let rules = CustomRules { rules: rules_map };
     let axiom = vec!['F'];
+    let mut current = axiom;
 
-    let mut system = LSystem::new(rules, axiom);
-
-    let mut result = vec!['F'];
     for _ in 0..depth {
-        if let Some(next_state) = system.next() {
-            result = next_state;
+        let mut next = Vec::new();
+        for &ch in &current {
+            if let Some(replacement) = rules_map.get(&ch) {
+                next.extend_from_slice(replacement);
+            } else {
+                next.push(ch);
+            }
         }
+        current = next;
     }
 
-    result.into_iter().collect()
+    current.into_iter().collect()
+}
+
+use crate::data::parser::DomainData;
+
+pub fn build_tree_sequence_from_domains(domains: &[DomainData]) -> String {
+    let mut sequence = String::from("FF");
+
+    let branch_rotations = [
+        "&[+FJJJ-FJJJ]",
+        "^[-FJJJ+FJJJ]",
+        "/&[+FJJJ]",
+        "\\^[+FJJJ]",
+        "+&[-FJJJ]",
+        "-^[+FJJJ]"
+    ];
+
+    for (i, _domain) in domains.iter().enumerate() {
+        let rot = branch_rotations[i % branch_rotations.len()];
+        sequence.push_str(&format!("[D{}{}]", i, rot));
+    }
+
+    sequence
 }

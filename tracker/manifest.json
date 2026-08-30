@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Web Time Tracker for Art",
+  "version": "1.4",
+  "description": "Śledzi czas spędzony na domenach do wykorzystania w sztuce generatywnej.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "management"
+  ],
+  "host_permissions": [
+    "http://localhost/*"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "time-tracker-art@example.com",
+      "data_collection_permissions": {
+        "required": [
+          "browsingActivity"
+        ]
+      }
+    }
+  }
+}
