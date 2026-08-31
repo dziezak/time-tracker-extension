@@ -52,6 +52,7 @@ fn hash(p: vec2<f32>) -> f32 {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let light_dir = normalize(uniforms.light_pos - in.world_pos);
     let view_dir = normalize(uniforms.camera_pos - in.world_pos);
+    let raw_normal: vec4<f32> = textureSample(t_normal, s_normal, in.uv);
 
     // Domyślna normalna geometryczna wierzchołka
     var N = normalize(in.normal);
@@ -114,9 +115,39 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // 3. LIŚCIE I PŁATKI (object_type == 1.0)
     // ==========================================
     else {
-        let center_vein = smoothstep(0.0, 0.06, abs(in.uv.x - 0.5));
-        let vein_darkness = mix(0.75f, 1.0f, center_vein);
-        base_color = vec4<f32>(in.color.rgb * vein_darkness, in.color.a);
+        // --- ALPHA CUTOUT / MASKOWANIE UV ---
+        // Obliczamy odległość od osi symetrii U (od 0.0 w środku do 1.0 na krawędziach)
+        let centered_u = abs(in.uv.x - 0.5) * 2.0;
+        let v = in.uv.y;
+
+        // Zaokrąglony, organiczny kształt liścia na bazie paraboli i trika z sinusoidą
+        let leaf_width = sin(v * 3.14159) * (1.0 - pow(v - 0.5, 2.0));
+
+        // Odrzucamy fragmenty trójkąta leżące poza obrysem liścia
+        if (centered_u > leaf_width * 1.1) {
+            discard;
+        }
+
+        // --- MAPOWANIE NORMALNYCH (TBN) ---
+        let T = normalize(in.tangent);
+        let B = normalize(cross(N, T));
+        let TBN = mat3x3<f32>(T, B, N);
+
+        let bump_strength = 2.2;
+// Konwertujemy 0..1 z tekstury na -1..1 bezpośrednio w wartościach f32
+    let nx = (raw_normal[0] * 2.0 - 1.0) * bump_strength;
+    let ny = (raw_normal[1] * 2.0 - 1.0) * bump_strength;
+    let nz = raw_normal[2] * 2.0 - 1.0;
+
+    let map_normal = normalize(vec3<f32>(nx, ny, nz));
+
+    // Aktualizujemy wektor normalny przestrzenią TBN
+    N = normalize(TBN * map_normal);
+
+            // Subtelne przyciemnienie głównego nerwu wzdłuż środka UV (poprawiony literał 0.75)
+            let center_vein = smoothstep(0.0, 0.06, abs(in.uv.x - 0.5));
+            let vein_darkness = mix(0.75f, 1.0, center_vein);
+            base_color = vec4<f32>(in.color.rgb * vein_darkness, in.color.a);
     }
 
     // ==========================================
