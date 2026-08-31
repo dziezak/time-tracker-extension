@@ -5,7 +5,8 @@ use crate::render::camera::Camera3D;
 use crate::render::depth::DepthTexture;
 use crate::render::petals::PetalSystem;
 use crate::render::mesh_buffer::GpuMeshBuffer;
-use crate::render::pipeline::{RenderContext, UniformsGPU};
+use crate::render::pipeline::{RenderContext};
+use crate::render::renderer::UniformsGPU;
 
 pub struct State {
     surface: wgpu::Surface<'static>,
@@ -51,7 +52,7 @@ impl State {
         surface.configure(&device, &config);
 
         let camera = Camera3D {
-            eye: (0.0, 35.0, 25.0).into(),
+            eye: (0.0, 25.0, 25.0).into(),
             target: (0.0, 10.0, 0.0).into(),
             up: glam::Vec3::Y,
             aspect: config.width as f32 / config.height as f32,
@@ -61,7 +62,7 @@ impl State {
         };
 
         let mvp = camera.build_view_projection_matrix().to_cols_array_2d();
-        let render_ctx = RenderContext::new(&device, config.format, mvp);
+        let render_ctx = RenderContext::new(&device, &queue, config.format, mvp);
 
         let tree_mesh = GpuMeshBuffer::new(
             &device,
@@ -107,11 +108,16 @@ impl State {
 
         let time = self.start_time.elapsed().as_secs_f32();
         let mvp = self.camera.build_view_projection_matrix();
+        let camera_pos = self.camera.eye.to_array();
 
         let updated_uniforms = UniformsGPU {
             mvp: mvp.to_cols_array_2d(),
+            camera_pos,
             time,
-            _padding: [0.0; 3],
+            light_pos: [10.0, 20.0, 10.0],
+            _padding1: 0.0,
+            light_color: [1.0, 0.95, 0.8],
+            _padding2: 0.0,
         };
         self.queue.write_buffer(&self.render_ctx.uniform_buffer, 0, bytemuck::cast_slice(&[updated_uniforms]));
 

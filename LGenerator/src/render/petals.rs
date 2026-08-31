@@ -176,21 +176,33 @@ impl PetalSystem {
             };
 
             let pink_color = [0.98, 0.65, 0.78, alpha];
+            let normal = [0.0, 1.0, 0.0];
+            let object_type = 1.0;
+            let tangent = [1.0, 0.0, 0.0];
 
             vertices.push(Vertex {
                 position: [p.x, p.y + s, p.z],
                 normal: [0.0, 1.0, 0.0],
                 color: pink_color,
+                uv: [0.5, 1.0],
+                object_type,
+                tangent,
             });
             vertices.push(Vertex {
                 position: [p.x - s, p.y - s, p.z + s * 0.5],
                 normal: [0.0, 1.0, 0.0],
                 color: pink_color,
+                uv: [0.0, 0.0],
+                object_type,
+                tangent,
             });
             vertices.push(Vertex {
                 position: [p.x + s, p.y - s, p.z - s * 0.5],
                 normal: [0.0, 1.0, 0.0],
                 color: pink_color,
+                uv: [1.0, 0.0],
+                object_type,
+                tangent,
             });
 
             indices.extend_from_slice(&[base_idx, base_idx + 1, base_idx + 2]);

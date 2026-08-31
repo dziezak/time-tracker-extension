@@ -20,6 +20,6 @@ impl Camera3D {
     pub fn update_orbit(&mut self, time: f32, radius: f32) {
         self.eye.x = time.cos() * radius;
         self.eye.z = time.sin() * radius;
-        self.eye.y = 10.0 + (time * 0.5).sin() * 3.0; // Delikatne unoszenie góra/dół
+        self.eye.y = 10.0 + (time * 0.5).sin() * 3.0;
     }
 }

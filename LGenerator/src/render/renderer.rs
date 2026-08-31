@@ -8,10 +8,14 @@ use crate::render::state::State;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct UniformsGPU {
-    mvp: [[f32; 4]; 4],
-    time: f32,
-    _padding: [f32; 3], 
+pub struct UniformsGPU {
+    pub mvp: [[f32; 4]; 4],
+    pub camera_pos: [f32; 3],
+    pub time: f32,
+    pub light_pos: [f32; 3],
+    pub _padding1: f32,
+    pub light_color: [f32; 3],
+    pub _padding2: f32,
 }
 
 pub async fn run_app(vertices: Vec<Vertex>, indices: Vec<u32>) {

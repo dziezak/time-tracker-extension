@@ -7,17 +7,47 @@ pub struct Vertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
     pub color: [f32; 4],
+    pub uv: [f32; 2],
+    pub object_type: f32,
+    pub tangent: [f32; 3],
 }
 
 impl Vertex {
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
-                wgpu::VertexAttribute { offset: 0, shader_location: 0, format: wgpu::VertexFormat::Float32x3 },
-                wgpu::VertexAttribute { offset: 12, shader_location: 1, format: wgpu::VertexFormat::Float32x3 },
-                wgpu::VertexAttribute { offset: 24, shader_location: 2, format: wgpu::VertexFormat::Float32x4 },
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 10]>() as wgpu::BufferAddress,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                    shader_location: 4,
+                    format: wgpu::VertexFormat::Float32,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 13]>() as wgpu::BufferAddress,
+                    shader_location: 5,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
             ],
         }
     }
@@ -68,8 +98,8 @@ impl Turtle3D {
 
         let mut current_domain_idx: usize = 0;
         let mut domain_stack: Vec<usize> = Vec::new();
-        let mut branch_counter: usize = 0;
-        let mut leaf_counter: usize = 0; // <-- Dodany licznik wariacji liści
+        let mut main_branch_counter: usize = 0;
+        let mut leaf_counter: usize = 0;
 
         for ch in axiom_sequence.chars() {
             match ch {
@@ -97,8 +127,10 @@ impl Turtle3D {
                     self.stack.push(self.state.clone());
                     domain_stack.push(current_domain_idx);
 
-                    branch_counter += 1;
-                    current_domain_idx = branch_counter;
+                    if self.stack.len() == 1 {
+                        current_domain_idx = main_branch_counter;
+                        main_branch_counter += 1;
+                    }
 
                     self.state.thickness *= 0.68;
                     self.state.length *= 0.72;
@@ -125,7 +157,6 @@ impl Turtle3D {
                         &domains[current_domain_idx % domains.len()]
                     };
 
-                    // Przekazujemy leaf_counter jako 5. argument
                     self.append_leaf(&mut vertices, &mut indices, self.state.position, domain, leaf_counter);
                     leaf_counter += 1;
                 }
@@ -143,14 +174,16 @@ impl Turtle3D {
         let up = if dir.y.abs() > 0.99 { Vec3::X } else { Vec3::Y };
         let right = dir.cross(up).normalize();
         let forward = right.cross(dir).normalize();
+        let tangent = [1.0, 0.0, 0.0];
 
         for i in 0..sides {
+            let u = i as f32 / sides as f32;
             let a = (i as f32 / sides as f32) * std::f32::consts::TAU;
             let norm = right * a.cos() + forward * a.sin();
-            let color = [0.35, 0.22, 0.12, 1.0]; // Kolor pnia
+            let color = [0.35, 0.22, 0.12, 1.0];
 
-            verts.push(Vertex { position: (start + norm * radius).to_array(), normal: norm.to_array(), color });
-            verts.push(Vertex { position: (end + norm * (radius * 0.75)).to_array(), normal: norm.to_array(), color });
+            verts.push(Vertex { position: (start + norm * radius).to_array(), normal: norm.to_array(), color, uv: [u, 0.0] , object_type: 0.0 , tangent});
+            verts.push(Vertex { position: (end + norm * (radius * 0.75)).to_array(), normal: norm.to_array(), color , uv: [u, 1.0] , object_type: 0.0, tangent });
 
             let curr = base_idx + i * 2;
             let next = base_idx + ((i + 1) % sides) * 2;
@@ -168,7 +201,7 @@ impl Turtle3D {
     ) {
         let base_index = vertices.len() as u32;
 
-        let scale = 0.08 + domain.weight * 0.12;
+        let scale = 0.08 + domain.weight ;
 
         let mut color = domain.color;
         let brightness_offset = ((leaf_variant % 5) as f32 - 2.0) * 0.04;
@@ -179,16 +212,17 @@ impl Turtle3D {
         let up = self.state.rotation * glam::Vec3::Y * scale;
         let right = self.state.rotation * glam::Vec3::X * (scale * 0.6);
         let normal = (self.state.rotation * glam::Vec3::Z).normalize().into();
+        let tangent: [f32; 3] = (self.state.rotation * glam::Vec3::X).normalize().into();
 
         let p0 = pos - right;
         let p1 = pos + up;
         let p2 = pos + right;
         let p3 = pos - up * 0.4;
 
-        vertices.push(Vertex { position: p0.into(), normal, color });
-        vertices.push(Vertex { position: p1.into(), normal, color });
-        vertices.push(Vertex { position: p2.into(), normal, color });
-        vertices.push(Vertex { position: p3.into(), normal, color });
+        vertices.push(Vertex { position: p0.into(), normal, color, uv: [0.0, 0.0], object_type: 1.0, tangent });
+        vertices.push(Vertex { position: p1.into(), normal, color, uv: [0.5, 1.0], object_type: 1.0, tangent });
+        vertices.push(Vertex { position: p2.into(), normal, color, uv: [1.0, 0.0], object_type: 1.0, tangent });
+        vertices.push(Vertex { position: p3.into(), normal, color, uv: [0.5, 0.0], object_type: 1.0, tangent });
 
         indices.extend_from_slice(&[
             base_index, base_index + 1, base_index + 2,
@@ -197,6 +231,27 @@ impl Turtle3D {
             base_index, base_index + 3, base_index + 2,
         ]);
     }
+}
+
+pub fn create_water_plane(size: f32, y_pos: f32) -> (Vec<Vertex>, Vec<u32>) {
+    let half = size / 2.0;
+    let normal = [0.0, 1.0, 0.0];
+    let color = [0.05, 0.15, 0.25, 0.85];
+    let tangent = [1.0, 0.0, 0.0];
+
+    let vertices = vec![
+        Vertex { position: [-half, y_pos, -half], normal, color, uv: [0.0, 0.0], object_type: 2.0 , tangent },
+        Vertex { position: [ half, y_pos, -half], normal, color, uv: [1.0, 0.0], object_type: 2.0 , tangent },
+        Vertex { position: [ half, y_pos,  half], normal, color, uv: [1.0, 1.0], object_type: 2.0, tangent },
+        Vertex { position: [-half, y_pos,  half], normal, color, uv: [-0.0, 1.0], object_type: 2.0, tangent },
+    ];
+
+    let indices = vec![
+        0, 1, 2,  0, 2, 3,
+        0, 2, 1,  0, 3, 2,
+    ];
+
+    (vertices, indices)
 }
 
 pub fn domain_to_rgb(domain_name: &str) -> [f32; 4] {
@@ -208,7 +263,7 @@ pub fn domain_to_rgb(domain_name: &str) -> [f32; 4] {
 
     let hue = (hash % 360) as f32;
     let [r, g, b] = hsl_to_rgb(hue, 0.75, 0.55);
-    [r, g, b, 1.0] // Zwracamy tablicę 4-elementową (RGBA)
+    [r, g, b, 1.0]
 }
 
 fn hsl_to_rgb(h: f32, s: f32, l: f32) -> [f32; 3] {
