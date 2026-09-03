@@ -201,7 +201,7 @@ impl Turtle3D {
     ) {
         let base_index = vertices.len() as u32;
 
-        let scale = 0.08 + domain.weight ;
+        let scale = 0.8 + domain.weight ;
 
         let mut color = domain.color;
         let brightness_offset = ((leaf_variant % 5) as f32 - 2.0) * 0.04;

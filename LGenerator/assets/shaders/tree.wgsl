@@ -61,21 +61,42 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // 1. TAFLA WODY (object_type == 2.0)
     // ==========================================
     if (in.object_type > 1.5) {
-        let wave1 = sin(in.world_pos.x * 1.5 + uniforms.time * 2.5) * 0.12;
-        let wave2 = cos(in.world_pos.z * 1.8 + uniforms.time * 2.0) * 0.12;
-        let wave_normal = normalize(vec3<f32>(wave1, 1.0, wave2));
+        let tree_center = vec2<f32>(0.0, 0.0);
+        let water_pos = in.world_pos.xz - tree_center;
+
+        let dist = length(water_pos);
+        let dir = select(vec2<f32>(0.0, 1.0), normalize(water_pos), dist > 0.0001);
+
+        let freq1 = 4.0;
+        let speed1 = 3.5;
+        let amp1 = 0.08;
+
+        let freq2 = 8.5;
+        let speed2 = 5.0;
+        let amp2 = 0.03;
+
+        let attenuation = exp(-dist * 0.25);
+
+        let phase1 = dist * freq1 - uniforms.time * speed1;
+        let phase2 = dist * freq2 - uniforms.time * speed2;
+
+        let slope1 = cos(phase1) * freq1 * amp1 * attenuation;
+        let slope2 = cos(phase2) * freq2 * amp2 * attenuation;
+        let total_slope = slope1 + slope2;
+
+        let wave_normal = normalize(vec3<f32>(-dir.x * total_slope, 1.0, -dir.y * total_slope));
 
         let half_dir = normalize(light_dir + view_dir);
-        let spec = pow(max(dot(wave_normal, half_dir), 0.0), 32.0);
-        let fresnel = pow(1.0 - max(dot(view_dir, wave_normal), 0.0), 2.0);
+        let spec = pow(max(dot(wave_normal, half_dir), 0.0), 64.0);
+        let fresnel = pow(1.0 - max(dot(view_dir, wave_normal), 0.0), 3.0);
 
-        let deep_water = vec3<f32>(0.05, 0.15, 0.30);
-        let sky_color = vec3<f32>(0.40, 0.60, 0.85);
+        let deep_water = vec3<f32>(0.03, 0.10, 0.22);
+        let sky_color = vec3<f32>(0.45, 0.65, 0.90);
 
-        let water_base = mix(deep_water, sky_color, fresnel * 0.7);
-        let specular_light = uniforms.light_color * spec * 2.5;
+        let water_base = mix(deep_water, sky_color, fresnel * 0.85);
+        let specular_light = uniforms.light_color * spec * 3.0;
 
-        return vec4<f32>(water_base + specular_light, 0.9);
+        return vec4<f32>(water_base + specular_light, 0.88);
     }
 
     // ==========================================
@@ -115,39 +136,28 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // 3. LIŚCIE I PŁATKI (object_type == 1.0)
     // ==========================================
     else {
-        // --- ALPHA CUTOUT / MASKOWANIE UV ---
-        // Obliczamy odległość od osi symetrii U (od 0.0 w środku do 1.0 na krawędziach)
-        let centered_u = abs(in.uv.x - 0.5) * 2.0;
-        let v = in.uv.y;
+        let alpha_mask = raw_normal.a;
 
-        // Zaokrąglony, organiczny kształt liścia na bazie paraboli i trika z sinusoidą
-        let leaf_width = sin(v * 3.14159) * (1.0 - pow(v - 0.5, 2.0));
-
-        // Odrzucamy fragmenty trójkąta leżące poza obrysem liścia
-        if (centered_u > leaf_width * 1.1) {
+        if (alpha_mask < 0.1) {
             discard;
         }
 
-        // --- MAPOWANIE NORMALNYCH (TBN) ---
         let T = normalize(in.tangent);
         let B = normalize(cross(N, T));
         let TBN = mat3x3<f32>(T, B, N);
 
         let bump_strength = 2.2;
-// Konwertujemy 0..1 z tekstury na -1..1 bezpośrednio w wartościach f32
-    let nx = (raw_normal[0] * 2.0 - 1.0) * bump_strength;
-    let ny = (raw_normal[1] * 2.0 - 1.0) * bump_strength;
-    let nz = raw_normal[2] * 2.0 - 1.0;
+        let nx = (raw_normal[0] * 2.0 - 1.0) * bump_strength;
+        let ny = (raw_normal[1] * 2.0 - 1.0) * bump_strength;
+        let nz = raw_normal[2] * 2.0 - 1.0;
 
-    let map_normal = normalize(vec3<f32>(nx, ny, nz));
+        let map_normal = normalize(vec3<f32>(nx, ny, nz));
+        N = normalize(TBN * map_normal);
 
-    // Aktualizujemy wektor normalny przestrzenią TBN
-    N = normalize(TBN * map_normal);
+        let center_vein = smoothstep(0.0, 0.05, abs(in.uv.x - 0.5));
+        let vein_darkness = mix(0.85f, 1.0, center_vein);
 
-            // Subtelne przyciemnienie głównego nerwu wzdłuż środka UV (poprawiony literał 0.75)
-            let center_vein = smoothstep(0.0, 0.06, abs(in.uv.x - 0.5));
-            let vein_darkness = mix(0.75f, 1.0, center_vein);
-            base_color = vec4<f32>(in.color.rgb * vein_darkness, in.color.a);
+        base_color = vec4<f32>(in.color.rgb * vein_darkness, in.color.a);
     }
 
     // ==========================================
